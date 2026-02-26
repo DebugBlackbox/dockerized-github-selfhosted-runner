@@ -3,7 +3,7 @@
 FROM ubuntu:24.04
 
 # ── Arguments (override at build time) ────────────────────────────────────────
-ARG RUNNER_VERSION=2.323.0
+ARG RUNNER_VERSION=2.332.0
 # Optional: pass --build-arg TARGETARCH=arm64 to cross-compile.
 # If not set, the arch is detected dynamically from the build host (uname -m).
 ARG TARGETARCH
@@ -45,13 +45,13 @@ RUN useradd -m -s /bin/bash runner \
 
 # ── Download & verify the runner package ──────────────────────────────────────
 # Resolve arch: prefer the explicit TARGETARCH build-arg; fall back to uname -m.
-# uname reports "x86_64" / "aarch64" — map these to Docker's "amd64" / "arm64".
+# uname reports "x86_64" / "aarch64" — map to GitHub's release naming (x64/arm64/arm).
 RUN mkdir -p "${RUNNER_HOME}" \
     && ARCH="${TARGETARCH:-$(uname -m)}" \
     && case "${ARCH}" in \
-    x86_64)  ARCH=amd64 ;; \
-    aarch64) ARCH=arm64 ;; \
-    armv7l)  ARCH=arm   ;; \
+    x86_64|amd64)  ARCH=x64  ;; \
+    aarch64|arm64) ARCH=arm64 ;; \
+    armv7l|arm)    ARCH=arm   ;; \
     esac \
     && curl -fsSL \
     "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
