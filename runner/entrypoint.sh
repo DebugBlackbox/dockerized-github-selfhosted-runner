@@ -12,13 +12,19 @@ if [ "$(id -u)" = "0" ]; then
   if [ -S "$SOCK" ]; then
     SOCK_GID=$(stat -c '%g' "$SOCK")
     CURRENT_GID=$(getent group docker | cut -d: -f3)
-    if [ "$SOCK_GID" != "$CURRENT_GID" ]; then
+    if [ "$SOCK_GID" = "0" ]; then
+      # macOS / Windows Docker Desktop: socket is owned by root (GID 0).
+      # We can't groupmod docker to GID 0 (already taken by root), so instead
+      # we chown the socket to the docker group inside the container.
+      chown root:docker "$SOCK"
+      chmod 660 "$SOCK"
+    elif [ "$SOCK_GID" != "$CURRENT_GID" ]; then
+      # Linux: sync the docker group GID to match the host socket's GID.
       groupmod -g "$SOCK_GID" docker
     fi
-    # Ensure runner is in the docker group (idempotent)
     usermod -aG docker runner
   fi
-  # Re-exec as the runner user
+  # Re-exec as the runner user now that the socket is accessible.
   exec sudo -u runner -E "$0" "$@"
 fi
 
