@@ -44,6 +44,8 @@ services:
       replicas: 3
       resources:
         limits:
+          cpus: "1.0" # max 1 core per runner — adjust to taste
           memory: 2g
         reservations:
+          cpus: "0.25" # guaranteed 0.25 cores at minimum
           memory: 512m
