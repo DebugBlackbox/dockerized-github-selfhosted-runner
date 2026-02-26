@@ -1,0 +1,49 @@
+# ── Docker Compose for self-hosted GitHub Actions Runners ──────────────
+#
+# 3 runners start by default (replicas: 3).
+# Override count:  docker compose up --scale runner=N -d
+# Stop all:        docker compose down
+#
+# Copy .env.example → .env and fill in your values before starting.
+
+services:
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dbwrap-gh-runner:latest
+    restart: unless-stopped
+
+    # Each container needs a unique name so GitHub registers separate runners.
+    # Docker Compose appends the replica index automatically (runner-1, runner-2 …)
+    # when you scale, which makes RUNNER_NAME unique per container.
+    hostname: runner-${COMPOSE_PROJECT_NAME:-dbwrap}
+
+    environment:
+      # Required — set these in .env
+      GITHUB_OWNER: ${GITHUB_OWNER}
+      GITHUB_REPO: ${GITHUB_REPO:-} # Leave empty for org-level runner
+      GITHUB_PAT: ${GITHUB_PAT}
+
+      # Optional overrides
+      RUNNER_LABELS: ${RUNNER_LABELS:-self-hosted,linux,arm64}
+      RUNNER_GROUP: ${RUNNER_GROUP:-Default}
+      RUNNER_WORKDIR: ${RUNNER_WORKDIR:-/tmp/_work}
+
+      # Unique name per replica — uses container hostname + random suffix
+      RUNNER_NAME: ${RUNNER_NAME:-} # leave blank → entrypoint uses hostname
+
+    # Mount Docker socket so runners can build/push images (adjust path if needed)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "docker" # grants runner user access to the socket
+
+    # Prevent a runaway runner from consuming all memory on the host
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 512m

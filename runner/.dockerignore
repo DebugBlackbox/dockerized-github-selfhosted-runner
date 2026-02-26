@@ -1,0 +1,13 @@
+# Ignore secrets and transient build artefacts
+.env
+.env.*
+!.env.example
+
+# Runner registration state (never bake into image)
+.runner
+.credentials
+.credentials_rsaparams
+
+# Scratch work dirs
+_work/
+_diag/
