@@ -14,10 +14,10 @@ services:
     image: dbwrap-gh-runner:latest
     restart: unless-stopped
 
-    # Each container needs a unique name so GitHub registers separate runners.
-    # Docker Compose appends the replica index automatically (runner-1, runner-2 …)
-    # when you scale, which makes RUNNER_NAME unique per container.
-    hostname: runner-${COMPOSE_PROJECT_NAME:-dbwrap}
+    # Each container gets Docker's auto-assigned unique hostname so GitHub
+    # registers them as separate runners (runner-1, runner-2, runner-3 …).
+    # Do NOT set a static hostname here — all replicas would share the same
+    # name and keep overwriting each other on the GitHub runner dashboard.
 
     environment:
       # Required — set these in .env

@@ -39,7 +39,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN npm install -g corepack && corepack enable
 
 # ── Runner user ────────────────────────────────────────────────────────────────
-RUN useradd -m -s /bin/bash runner \
+# Create a docker group with a placeholder GID. The entrypoint.sh will update
+# the GID at runtime to match the host's /var/run/docker.sock group, making
+# this work on any OS (Linux, macOS Docker Desktop, Windows Docker Desktop).
+RUN groupadd docker \
+    && useradd -m -s /bin/bash -G docker runner \
     && echo "runner ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/runner \
     && chmod 0440 /etc/sudoers.d/runner
 
@@ -67,7 +71,9 @@ RUN "${RUNNER_HOME}/bin/installdependencies.sh"
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-USER runner
+# Start as root so entrypoint.sh can fix the docker group GID dynamically.
+# The entrypoint re-execs as the runner user after the group fix.
+USER root
 WORKDIR ${RUNNER_HOME}
 
 ENTRYPOINT ["/entrypoint.sh"]

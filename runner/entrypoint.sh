@@ -1,12 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ── Docker socket GID fix (cross-platform) ────────────────────────────────────
+# When the host mounts /var/run/docker.sock, the socket's group GID differs by OS:
+#   Linux         → host's docker group GID (e.g. 108, 998, 1001, …)
+#   macOS/Windows → typically 0 (root) via Docker Desktop
+# We detect it at runtime and update the in-container docker group GID to match,
+# so the runner user can always reach the socket regardless of host OS.
+if [ "$(id -u)" = "0" ]; then
+  SOCK=/var/run/docker.sock
+  if [ -S "$SOCK" ]; then
+    SOCK_GID=$(stat -c '%g' "$SOCK")
+    CURRENT_GID=$(getent group docker | cut -d: -f3)
+    if [ "$SOCK_GID" != "$CURRENT_GID" ]; then
+      groupmod -g "$SOCK_GID" docker
+    fi
+    # Ensure runner is in the docker group (idempotent)
+    usermod -aG docker runner
+  fi
+  # Re-exec as the runner user
+  exec sudo -u runner -E "$0" "$@"
+fi
+
 # ── Required environment variables ────────────────────────────────────────────
 : "${GITHUB_OWNER:?GITHUB_OWNER is required (e.g. my-org or my-user)}"
-: "${GITHUB_REPO:?GITHUB_REPO is required (leave empty string for org-level runner)}"
+: "${GITHUB_REPO?GITHUB_REPO is required (leave empty string for org-level runner)}"
 : "${GITHUB_PAT:?GITHUB_PAT (Personal Access Token) is required}"
 
-RUNNER_NAME="${RUNNER_NAME:-$(hostname)}"
+# Give each runner a readable name: "runner-<project>-<short-id>"
+# This appears in the GitHub runner dashboard. Users can override via RUNNER_NAME in .env.
+RUNNER_NAME="${RUNNER_NAME:-runner-${COMPOSE_PROJECT_NAME:-dbwrap}-$(hostname | cut -c1-8)}"
 RUNNER_LABELS="${RUNNER_LABELS:-self-hosted,linux,arm64}"
 RUNNER_GROUP="${RUNNER_GROUP:-Default}"
 RUNNER_WORKDIR="${RUNNER_WORKDIR:-/tmp/_work}"
