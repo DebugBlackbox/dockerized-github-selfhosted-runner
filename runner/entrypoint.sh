@@ -25,7 +25,9 @@ if [ "$(id -u)" = "0" ]; then
     usermod -aG docker runner
   fi
   # Re-exec as the runner user now that the socket is accessible.
-  exec sudo -u runner -E "$0" "$@"
+  # -H resets HOME to /home/runner (prevents EACCES on /root/.gitconfig).
+  # -E preserves the rest of the environment (GITHUB_*, RUNNER_*, etc.).
+  exec sudo -u runner -H -E "$0" "$@"
 fi
 
 # ── Required environment variables ────────────────────────────────────────────
